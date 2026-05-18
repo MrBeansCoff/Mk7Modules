@@ -31,7 +31,7 @@
 </table>
 
 ```bash
-git clone https://github.com/MrBeansCoff/Mk7-Modules.git
+git clone https://github.com/MrBeansCoff/Mk7Modules.git
 
-cd Mk7-Modules
+cd Mk7Modules
 ```
