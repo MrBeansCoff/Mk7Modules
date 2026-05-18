@@ -14,6 +14,7 @@
 *REMASTERED 2026 Pineapple mark 7 modules this repository contains only 1 module currently*
 *More will possibly be added in the future*
 
+<div align="center">
 <table>
   <th>Current Modules</th>
   <tr>
@@ -29,6 +30,7 @@
     </td>
   </tr>
 </table>
+</div>
 
 # For Developers
 
