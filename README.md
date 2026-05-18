@@ -11,7 +11,7 @@
   <img alt="Package" src="https://img.shields.io/badge/Package-tar.gz-444444?style=for-the-badge">
 </p>
 
-*REMASTERED 2026 Pineapple mark 7 modules this repository contains only 1 module currently*
+*2026 Pineapple mark 7 modules this repository contains only 1 module currently*
 *More will possibly be added in the future*
 
 <div align="center">
