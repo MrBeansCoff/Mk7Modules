@@ -11,9 +11,6 @@
   <img alt="Package" src="https://img.shields.io/badge/Package-tar.gz-444444?style=for-the-badge">
 </p>
 
-*2026 Pineapple mark 7 modules this repository contains only 1 module currently*
-*More will possibly be added in the future*
-
 <div align="center">
 <table>
   <th>Current Modules</th>
@@ -39,3 +36,5 @@ git clone https://github.com/MrBeansCoff/Mk7Modules.git
 
 cd Mk7Modules
 ```
+*2026 Pineapple mark 7 modules this repository contains only 1 module currently*
+*More will possibly be added in the future*
