@@ -30,6 +30,8 @@
   </tr>
 </table>
 
+# For Developers
+
 ```bash
 git clone https://github.com/MrBeansCoff/Mk7Modules.git
 
