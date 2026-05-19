@@ -17,7 +17,7 @@
 #⠀⠀⠀⣾⣿⣿⣿⠟⢛⣛⣛⣛⣻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣾⣿⣿⣿⣦⣦⡙⣿⣿⠿⠿⠿⠿⣿⣿⣿⣿⣿⠿⠿⠿⣿⠟⠛⠛⢷⣾⠇⠀⠀
 #⠀⠀⠰⢻⡿⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠐⠒⠒⠚⠻⠿⣿⣿⣿⣷⣶⣦⣤⣤⣤⣴⣿⣿⣮⣻⣿⣿⣿⠟⠛⠛⠙⠉⠉⠁⠀⠀⠀⠀⠀⠀⠀⠙⠀⠀⠀
 #⠀⠀⠀⠈⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠙⠛⠻⠿⠿⠿⠟⠛⠙⠛⠉⠳
-# [VERSION]: 1.0 [AUTHOR]: MrBeansCoff⠀[MODULE_BUILD]: MK7 
+# [VERSION]: 1.0 [AUTHOR]: MrBeansCoff (Maybe?)⠀[MODULE_BUILD]: MK7 
 # [CONTRIBUTERS]: 1⠀⠀⠀[LICENSE]: Apache License (2.0)
 # 
 # [SPILLED BEANS]: 
