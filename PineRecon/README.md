@@ -31,6 +31,13 @@ PineRecon is a WiFi Pineapple Mark VII module that wraps the built-in Pineapple 
       <br><strong>Handshake Status</strong>
     </td>
   </tr>
+  
+  <tr>
+    <td align="center" width="50%">
+      <img src="/readme_assets/handshake_capture.png" alt="PineRecon Handshake Capture" width="100%">
+      <br><strong>Handshake Proof</strong></br>
+      *This handshake was captured in a controlled environment on my own personal equipment do not test this equipment outside of any controlled environments*
+      *The author of this module will not be held responsible for any misuse of this tool*
 </table>
 
 ## Features
