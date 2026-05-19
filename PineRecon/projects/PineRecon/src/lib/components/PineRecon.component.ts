@@ -502,6 +502,10 @@ export class PineReconComponent implements OnInit, OnDestroy {
         }
     }
 
+    refreshCaptures(): void {
+        this.loadCaptures();
+    }
+
     downloadSelectedCapture(): void {
         if (!this.selectedCapture) {
             return;
@@ -535,12 +539,30 @@ export class PineReconComponent implements OnInit, OnDestroy {
         });
     }
 
+    downloadCaptureFromMenu(event: Event, capture: CaptureReport): void {
+        event.stopPropagation();
+        this.downloadCapture(capture);
+    }
+
     deleteSelectedCapture(): void {
         if (!this.selectedCapture) {
             return;
         }
 
-        const file = this.selectedCapture.file;
+        this.deleteCapture(this.selectedCapture);
+    }
+
+    deleteCaptureFromMenu(event: Event, capture: CaptureReport): void {
+        event.stopPropagation();
+        this.deleteCapture(capture);
+    }
+
+    deleteCapture(capture: CaptureReport): void {
+        if (!capture) {
+            return;
+        }
+
+        const file = capture.file;
         this.API.request({module: 'PineRecon', action: 'delete_capture', file}, (response) => {
             if (response && response.error) {
                 this.error = response.error;
@@ -548,7 +570,9 @@ export class PineReconComponent implements OnInit, OnDestroy {
             }
 
             this.captures = this.captures.filter((capture) => capture.file !== file);
-            this.selectedCapture = this.captures.length ? this.captures[0] : null;
+            if (this.selectedCapture && this.selectedCapture.file === file) {
+                this.selectedCapture = this.captures.length ? this.captures[0] : null;
+            }
             this.selectedCaptureFile = this.selectedCapture ? this.selectedCapture.file : '';
             if (!this.selectedCapture) {
                 this.handshakeLog = '';

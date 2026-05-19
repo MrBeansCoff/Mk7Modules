@@ -525,15 +525,42 @@
                             </div>
                         </div>
 
-                        <div class="handshake-selector" *ngIf="captures.length">
+                        <div class="handshake-selector">
                             <mat-form-field appearance="outline">
-                                <mat-label>Recent Attempts</mat-label>
-                                <mat-select [(ngModel)]="selectedCaptureFile" (ngModelChange)="selectCaptureByFile($event)" aria-label="Recent handshake attempts">
+                                <mat-label>Capture Files</mat-label>
+                                <mat-select [(ngModel)]="selectedCaptureFile" (ngModelChange)="selectCaptureByFile($event)" aria-label="Handshake capture files" [disabled]="!captures.length">
+                                    <mat-select-trigger>
+                                        {{ selectedCaptureFile || 'No captures found' }}
+                                    </mat-select-trigger>
                                     <mat-option *ngFor="let capture of captures" [value]="capture.file">
-                                        {{ capture.file }} - {{ captureStatusLabel(capture) }} / {{ capture.eapol_frames }} EAPOL
+                                        <div class="capture-option">
+                                            <div>
+                                                <strong>{{ capture.file }}</strong>
+                                                <small>{{ captureStatusLabel(capture) }} / {{ capture.eapol_frames }} EAPOL</small>
+                                            </div>
+                                            <span class="capture-option-actions">
+                                                <button
+                                                    type="button"
+                                                    mat-icon-button
+                                                    matTooltip="Download capture"
+                                                    (click)="downloadCaptureFromMenu($event, capture)">
+                                                    <mat-icon>file_download</mat-icon>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    mat-icon-button
+                                                    matTooltip="Delete capture"
+                                                    (click)="deleteCaptureFromMenu($event, capture)">
+                                                    <mat-icon>delete</mat-icon>
+                                                </button>
+                                            </span>
+                                        </div>
                                     </mat-option>
                                 </mat-select>
                             </mat-form-field>
+                            <button class="ghost-action" mat-icon-button matTooltip="Refresh captures" (click)="refreshCaptures()">
+                                <mat-icon>refresh</mat-icon>
+                            </button>
                             <button class="ghost-action" mat-raised-button (click)="downloadSelectedCapture()" [disabled]="!selectedCapture">
                                 <mat-icon>file_download</mat-icon>
                                 Download PCAP

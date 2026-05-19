@@ -976,7 +976,7 @@
 
 .handshake-selector {
     display: grid;
-    grid-template-columns: minmax(220px, 1fr) auto auto;
+    grid-template-columns: minmax(220px, 1fr) 42px auto auto;
     gap: 10px;
     align-items: center;
     margin-bottom: 12px;
@@ -984,6 +984,49 @@
 
 .handshake-selector mat-form-field {
     width: 100%;
+}
+
+.capture-option {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    width: 100%;
+}
+
+.capture-option strong,
+.capture-option small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.capture-option strong {
+    color: #dffcf9;
+    font-size: 13px;
+}
+
+.capture-option small {
+    color: #8bb2b0;
+    font-size: 11px;
+}
+
+.capture-option-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.capture-option-actions button {
+    width: 30px;
+    height: 30px;
+    line-height: 30px;
+    color: #baf7ec;
+}
+
+.capture-option-actions button:last-child {
+    color: #ff8f9a;
 }
 
 .capture-status {
