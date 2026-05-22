@@ -1,4 +1,4 @@
-<div align="center" width="50">
+<div align="center" width="50%">
 <img src="https://github.com/MrBeansCoff/Mk7Modules/blob/main/PineRecon/readme_assets/pinerecon-logo.png?raw=true" alt="PineRecon"/>
 </div>
 <p align="center">
