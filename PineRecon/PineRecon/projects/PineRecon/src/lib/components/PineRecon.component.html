@@ -1,0 +1,642 @@
+<section class="pinerecon-shell" [ngClass]="themeClass">
+    <header class="command-bar">
+        <div class="brand-lockup">
+            <img *ngIf="!logoFailed" [src]="logoPath" alt="" (error)="onLogoError()">
+            <strong *ngIf="logoFailed">PineRecon</strong>
+            <p class="eyebrow">WiFi Pineapple Recon</p>
+        </div>
+
+        <div class="actions">
+            <div class="control-cluster">
+                <span>Band</span>
+                <mat-button-toggle-group [(ngModel)]="band" aria-label="Recon band">
+                    <mat-button-toggle value="both">Dual</mat-button-toggle>
+                    <mat-button-toggle value="2.4">2.4</mat-button-toggle>
+                    <mat-button-toggle value="5">5</mat-button-toggle>
+                </mat-button-toggle-group>
+            </div>
+
+            <div class="control-cluster theme-cluster">
+                <span>Theme</span>
+                <mat-form-field appearance="outline">
+                    <mat-select [ngModel]="theme" (ngModelChange)="onThemeChange($event)" aria-label="PineRecon theme">
+                        <mat-option *ngFor="let option of themes" [value]="option.value">{{ option.label }}</mat-option>
+                    </mat-select>
+                </mat-form-field>
+            </div>
+
+            <div class="control-cluster scan-time">
+                <span>Scan Time</span>
+                <mat-button-toggle-group [(ngModel)]="scanTime" aria-label="Scan time">
+                    <mat-button-toggle [value]="10">10s</mat-button-toggle>
+                    <mat-button-toggle [value]="15">15s</mat-button-toggle>
+                    <mat-button-toggle [value]="30">30s</mat-button-toggle>
+                    <mat-button-toggle [value]="60">60s</mat-button-toggle>
+                </mat-button-toggle-group>
+            </div>
+
+            <button class="primary-action" mat-raised-button color="primary" (click)="startScan()" [disabled]="scanning">
+                <mat-icon>settings_input_antenna</mat-icon>
+                Scan
+            </button>
+            <button class="primary-action ghost-action" mat-raised-button (click)="startIndefiniteScan()" [disabled]="scanning">
+                <mat-icon>all_inclusive</mat-icon>
+                Indefinite
+            </button>
+            <button class="danger-action" mat-raised-button (click)="stopScan()" [disabled]="!scanning">
+                <mat-icon>stop</mat-icon>
+                Stop Scan
+            </button>
+            <button class="ghost-action" mat-raised-button (click)="downloadLogs()">
+                <mat-icon>file_download</mat-icon>
+                Logs
+            </button>
+            <button mat-icon-button matTooltip="Refresh" (click)="refresh()">
+                <mat-icon>refresh</mat-icon>
+            </button>
+        </div>
+    </header>
+
+    <div class="status-strip">
+        <div class="status-pill" [class.good]="status.internet">
+            <mat-icon>public</mat-icon>
+            <span>{{ status.internet ? 'Online' : 'Offline' }}</span>
+        </div>
+        <div class="status-pill">
+            <mat-icon>hub</mat-icon>
+            <span>{{ status.socket }}</span>
+        </div>
+        <div class="status-pill">
+            <mat-icon>wifi_tethering</mat-icon>
+            <span>{{ accessPoints.length }} APs</span>
+        </div>
+        <div class="status-pill">
+            <mat-icon>groups</mat-icon>
+            <span>{{ clients.length }} Clients</span>
+        </div>
+        <div class="status-pill">
+            <mat-icon>fingerprint</mat-icon>
+            <span>{{ status.oui_count }} OUIs</span>
+        </div>
+        <div class="status-pill" [class.good]="captureReady()">
+            <mat-icon>verified</mat-icon>
+            <span>{{ captureReady() ? captureEngineLabel() : 'Deps needed' }}</span>
+        </div>
+        <div class="status-pill muted" *ngIf="lastUpdated">
+            <mat-icon>schedule</mat-icon>
+            <span>{{ lastUpdated }}</span>
+        </div>
+        <div class="status-pill muted" *ngIf="scanId">
+            <mat-icon>tag</mat-icon>
+            <span>Scan {{ scanId }} / {{ continuousScan ? 'continuous' : scanPercent + '%' }}</span>
+        </div>
+    </div>
+
+    <div class="load-stage" *ngIf="loading || scanning || capturing || dependencyBusy">
+        <div class="scan-loader">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+        <strong *ngIf="scanning">Recon sweep in progress</strong>
+        <strong *ngIf="capturing">Handshake capture armed</strong>
+        <strong *ngIf="dependencyBusy">Installing PineRecon tooling</strong>
+        <strong *ngIf="loading && !scanning && !capturing && !dependencyBusy">Synchronizing telemetry</strong>
+    </div>
+    <mat-progress-bar *ngIf="loading || scanning || capturing || dependencyBusy" mode="indeterminate"></mat-progress-bar>
+    <div class="error" *ngIf="error">{{ error }}</div>
+
+    <div class="dependency-banner" *ngIf="(dependencyChecked && !captureReady()) || (ouiChecked && !status.oui_count)">
+        <div>
+            <strong>{{ dependencyChecked && !captureReady() ? 'Capture tooling unavailable' : 'OUI database not loaded' }}</strong>
+            <span *ngIf="dependencyChecked && !captureReady()">Install {{ (status.dependency_packages || ['hcxdumptool', 'aircrack-ng']).join(', ') }} only if this Pineapple does not already provide hcxdumptool or airodump-ng.</span>
+            <span *ngIf="ouiChecked && (!dependencyChecked || captureReady()) && !status.oui_count">{{ status.oui_error || 'No Pineapple OUI database was found by the module backend.' }}</span>
+            <small *ngIf="status.oui_path">OUI source: {{ status.oui_path }}</small>
+        </div>
+        <button *ngIf="dependencyChecked && !captureReady()" class="install-cta" mat-raised-button (click)="installDependencies()" [disabled]="dependencyBusy">
+            <mat-icon>file_download</mat-icon>
+            Install Dependencies
+        </button>
+        <button *ngIf="ouiChecked && (!dependencyChecked || captureReady()) && !status.oui_count" class="ghost-action" mat-raised-button (click)="reloadOuis()">
+            <mat-icon>refresh</mat-icon>
+            Recheck
+        </button>
+    </div>
+
+    <main class="recon-grid" *ngIf="!loading || accessPoints.length">
+        <section class="radar-panel">
+            <div class="radar">
+                <div class="ring ring-one"></div>
+                <div class="ring ring-two"></div>
+                <div class="ring ring-three"></div>
+                <div class="sweep"></div>
+                <div class="origin">
+                    <mat-icon>router</mat-icon>
+                </div>
+
+                <button
+                    type="button"
+                    class="target"
+                    *ngFor="let ap of accessPoints; trackBy: trackByBssid"
+                    [class.selected]="selectedAp === ap"
+                    [style.left.%]="ap.x"
+                    [style.top.%]="ap.y"
+                    [style.animation-delay.s]="ap.delay"
+                    (click)="selectAp(ap)"
+                    [matTooltip]="ap.ssid + ' / ' + ap.bssid">
+                    <span></span>
+                </button>
+            </div>
+
+            <aside class="focus-panel" *ngIf="selectedAp">
+                <div>
+                    <p class="eyebrow">Target lock</p>
+                    <h2>{{ selectedAp.ssid }}</h2>
+                    <p>{{ selectedAp.bssid }}</p>
+                </div>
+                <div class="focus-bars">
+                    <span *ngFor="let bar of signalBars(selectedAp.signal)" [class.on]="bar"></span>
+                    <strong>{{ selectedAp.signal }} dBm</strong>
+                </div>
+                <div class="focus-meta">
+                    <span>CH {{ selectedAp.channel || 'N/A' }}</span>
+                    <span *ngFor="let tag of selectedAp.securityTags">{{ tag }}</span>
+                    <span>{{ selectedAp.vendor }}</span>
+                    <span>MFP {{ selectedAp.mfp }}</span>
+                    <span>{{ selectedAp.clients }} clients</span>
+                    <span *ngIf="selectedAp.hidden">Hidden</span>
+                    <span *ngIf="selectedAp.wps">WPS</span>
+                </div>
+
+                <div class="client-list" *ngIf="selectedAp.clientList.length">
+                    <span *ngFor="let client of selectedAp.clientList">{{ client }}</span>
+                </div>
+
+                <div class="ap-detail-tools">
+                    <button type="button" mat-raised-button [class.active]="selectedApDetail === 'security'" (click)="selectedApDetail = 'security'">
+                        <mat-icon>security</mat-icon>
+                        Security Info
+                    </button>
+                    <button type="button" mat-raised-button [class.active]="selectedApDetail === 'tags'" (click)="selectedApDetail = 'tags'">
+                        <mat-icon>sell</mat-icon>
+                        Tagged Params
+                    </button>
+                </div>
+
+                <div class="ap-detail-panel" *ngIf="selectedApDetail === 'security'">
+                    <strong>Security Information for {{ selectedAp.ssid }} ({{ selectedAp.bssid }})</strong>
+                    <p>{{ selectedAp.securityDetails.summary }}</p>
+                    <div class="detail-list">
+                        <span><b>Authentication Key Suites:</b> {{ selectedAp.securityDetails.authentication.length ? selectedAp.securityDetails.authentication.join(', ') : selectedAp.security }}</span>
+                        <span><b>Group Cipher Suites:</b> {{ selectedAp.securityDetails.groupCiphers.length ? selectedAp.securityDetails.groupCiphers.join(', ') : 'Not reported' }}</span>
+                        <span><b>Pairwise Cipher Suites:</b> {{ selectedAp.securityDetails.pairwiseCiphers.length ? selectedAp.securityDetails.pairwiseCiphers.join(', ') : 'Not reported' }}</span>
+                        <span><b>MFP/PMF:</b> {{ selectedAp.mfp }}</span>
+                    </div>
+                </div>
+
+                <div class="ap-detail-panel" *ngIf="selectedApDetail === 'tags'">
+                    <strong>Tagged Parameters for {{ selectedAp.ssid }} ({{ selectedAp.bssid }})</strong>
+                    <p>This table contains tagged parameters, also known as Information Elements, seen in frames transmitted from this AP.</p>
+                    <div class="tagged-table" *ngIf="hasTaggedParameters(selectedAp)">
+                        <div class="tagged-row header">
+                            <span>Parameter</span>
+                            <span>Value</span>
+                        </div>
+                        <div class="tagged-row" *ngFor="let parameter of selectedAp.taggedParameters">
+                            <span>{{ parameter.name }}</span>
+                            <span>{{ parameter.value }}</span>
+                        </div>
+                    </div>
+                    <div class="detail-list" *ngIf="!hasTaggedParameters(selectedAp)">
+                        <span>No tagged parameters were included in this recon result.</span>
+                    </div>
+                </div>
+
+                <div class="intel-grid">
+                    <button type="button" class="intel-card">
+                        <mat-icon>security</mat-icon>
+                        <strong>Security</strong>
+                        <span>{{ selectedAp.security }}</span>
+                    </button>
+                    <button type="button" class="intel-card">
+                        <mat-icon>groups</mat-icon>
+                        <strong>Clients</strong>
+                        <span>{{ selectedAp.clients }} seen</span>
+                    </button>
+                    <button type="button" class="intel-card">
+                        <mat-icon>data_usage</mat-icon>
+                        <strong>Traffic</strong>
+                        <span>{{ selectedAp.dataFrames }} data / {{ selectedAp.probes }} probes</span>
+                    </button>
+                    <button type="button" class="intel-card">
+                        <mat-icon>vpn_key</mat-icon>
+                        <strong>Handshake</strong>
+                        <span>{{ selectedCapture ? selectedCapture.confidence : 'none' }}</span>
+                    </button>
+                    <button type="button" class="intel-card">
+                        <mat-icon>admin_panel_settings</mat-icon>
+                        <strong>MFP/PMF</strong>
+                        <span>{{ selectedAp.mfp }}</span>
+                    </button>
+                </div>
+
+                <div class="capture-controls">
+                    <button class="handshake-cta" mat-raised-button (click)="startHandshakeCapture()" [disabled]="capturing || !captureReady()">
+                        <mat-icon>vpn_key</mat-icon>
+                        Start Handshake
+                    </button>
+                    <mat-form-field class="capture-select interface-select" appearance="outline">
+                        <mat-label>Interface</mat-label>
+                        <mat-select [(ngModel)]="captureInterface" (selectionChange)="runHandshakePreflight()" aria-label="Handshake capture interface">
+                            <mat-option *ngFor="let iface of status.interfaces" [value]="iface">{{ iface }}</mat-option>
+                        </mat-select>
+                    </mat-form-field>
+                    <mat-form-field class="capture-select duration-select" appearance="outline">
+                        <mat-label>Duration</mat-label>
+                        <mat-select [(ngModel)]="captureDuration" aria-label="Handshake capture duration">
+                            <mat-option [value]="0">Indefinite</mat-option>
+                            <mat-option [value]="60">60s</mat-option>
+                            <mat-option [value]="90">90s</mat-option>
+                            <mat-option [value]="180">180s</mat-option>
+                            <mat-option [value]="300">300s</mat-option>
+                        </mat-select>
+                    </mat-form-field>
+                    <button class="danger-action" mat-raised-button (click)="stopHandshakeCapture()" [disabled]="!capturing">
+                        <mat-icon>stop_circle</mat-icon>
+                        Stop
+                    </button>
+                </div>
+
+                <div class="preflight-panel" *ngIf="handshakePreflight">
+                    <div>
+                        <strong>{{ handshakePreflight.ready ? 'Capture preflight ready' : 'Capture preflight needs attention' }}</strong>
+                        <span>{{ handshakePreflight.capture_engine || captureEngineLabel() }} / {{ captureInterface || 'No interface' }}</span>
+                    </div>
+                    <small *ngIf="handshakePreflight.interface_info">
+                        Mode {{ handshakePreflight.interface_info.type || 'unknown' }} /
+                        CH {{ handshakePreflight.interface_info.channel || 'unknown' }}
+                    </small>
+                    <ul *ngIf="handshakePreflight.blockers && handshakePreflight.blockers.length">
+                        <li *ngFor="let blocker of handshakePreflight.blockers">{{ blocker }}</li>
+                    </ul>
+                    <ul *ngIf="handshakePreflight.warnings && handshakePreflight.warnings.length">
+                        <li *ngFor="let warning of handshakePreflight.warnings">{{ warning }}</li>
+                    </ul>
+                    <small *ngIf="handshakePreflight.suggestions && handshakePreflight.suggestions.length">
+                        {{ handshakePreflight.suggestions.join(' ') }}
+                    </small>
+                </div>
+
+            </aside>
+        </section>
+
+        <section class="data-panel">
+            <mat-tab-group>
+                <mat-tab label="Access Points">
+                    <div class="analysis-strip">
+                        <div class="analysis-block">
+                            <div class="analysis-title">
+                                <mat-icon>settings_input_component</mat-icon>
+                                <span>Channel Distribution</span>
+                            </div>
+                            <div class="stat-row" *ngFor="let stat of channelStats">
+                                <strong>CH {{ stat.label }}</strong>
+                                <div class="stat-track">
+                                    <span [style.width.%]="stat.percent"></span>
+                                </div>
+                                <em>{{ stat.count }}</em>
+                            </div>
+                        </div>
+
+                        <div class="analysis-block">
+                            <div class="analysis-title">
+                                <mat-icon>enhanced_encryption</mat-icon>
+                                <span>Security Distribution</span>
+                            </div>
+                            <div class="stat-row" *ngFor="let stat of securityStats">
+                                <strong>{{ stat.label }}</strong>
+                                <div class="stat-track">
+                                    <span [style.width.%]="stat.percent"></span>
+                                </div>
+                                <em>{{ stat.percent }}%</em>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-panel">
+                        <table mat-table [dataSource]="pagedAccessPoints" class="ap-table">
+                            <ng-container matColumnDef="signal">
+                                <th mat-header-cell *matHeaderCellDef>Signal</th>
+                                <td mat-cell *matCellDef="let ap">
+                                    <div class="bars">
+                                        <span *ngFor="let bar of signalBars(ap.signal)" [class.on]="bar"></span>
+                                    </div>
+                                    <small>{{ ap.signal }} dBm</small>
+                                </td>
+                            </ng-container>
+
+                            <ng-container matColumnDef="ssid">
+                                <th mat-header-cell *matHeaderCellDef>SSID</th>
+                                <td mat-cell *matCellDef="let ap">{{ ap.ssid }}</td>
+                            </ng-container>
+
+                            <ng-container matColumnDef="bssid">
+                                <th mat-header-cell *matHeaderCellDef>BSSID</th>
+                                <td mat-cell *matCellDef="let ap">{{ ap.bssid }}</td>
+                            </ng-container>
+
+                            <ng-container matColumnDef="vendor">
+                                <th mat-header-cell *matHeaderCellDef>OUI</th>
+                                <td mat-cell *matCellDef="let ap">{{ ap.vendor }}</td>
+                            </ng-container>
+
+                            <ng-container matColumnDef="channel">
+                                <th mat-header-cell *matHeaderCellDef>CH</th>
+                                <td mat-cell *matCellDef="let ap">{{ ap.channel || 'N/A' }}</td>
+                            </ng-container>
+
+                            <ng-container matColumnDef="security">
+                                <th mat-header-cell *matHeaderCellDef>Security</th>
+                                <td mat-cell *matCellDef="let ap">{{ ap.security }}</td>
+                            </ng-container>
+
+                            <ng-container matColumnDef="wps">
+                                <th mat-header-cell *matHeaderCellDef>WPS</th>
+                                <td mat-cell *matCellDef="let ap">{{ ap.wps ? 'Enabled' : 'Disabled' }}</td>
+                            </ng-container>
+
+                            <ng-container matColumnDef="mfp">
+                                <th mat-header-cell *matHeaderCellDef>MFP</th>
+                                <td mat-cell *matCellDef="let ap">{{ ap.mfp }}</td>
+                            </ng-container>
+
+                            <ng-container matColumnDef="clients">
+                                <th mat-header-cell *matHeaderCellDef>Clients</th>
+                                <td mat-cell *matCellDef="let ap">{{ ap.clients }}</td>
+                            </ng-container>
+
+                            <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+                            <tr
+                                mat-row
+                                *matRowDef="let row; columns: displayedColumns;"
+                                [class.selected]="selectedAp === row"
+                                (click)="selectAp(row)">
+                            </tr>
+                        </table>
+
+                        <div class="empty-state" *ngIf="!accessPoints.length && !loading">
+                            <mat-icon>wifi_find</mat-icon>
+                            <span>No recon captures loaded</span>
+                        </div>
+                    </div>
+                    <div class="pager-row" *ngIf="accessPoints.length">
+                        <button mat-button (click)="prevApPage()" [disabled]="pageIndex === 0">
+                            <mat-icon>chevron_left</mat-icon>
+                            Previous
+                        </button>
+                        <span>Showing {{ pageIndex * pageSize + 1 }}-{{ pageIndex * pageSize + pagedAccessPoints.length }} of {{ accessPoints.length }}</span>
+                        <button mat-button (click)="nextApPage()" [disabled]="pageIndex >= apPageCount - 1">
+                            Next
+                            <mat-icon>chevron_right</mat-icon>
+                        </button>
+                    </div>
+                </mat-tab>
+
+                <mat-tab label="Clients ({{ clients.length }})">
+                    <div class="client-detail" *ngIf="selectedClient">
+                        <div>
+                            <p class="eyebrow">Selected Client</p>
+                            <h3>{{ selectedClient.mac }}</h3>
+                            <span>{{ selectedClient.associated ? 'Associated' : 'Unassociated' }}</span>
+                        </div>
+                        <div class="client-detail-grid">
+                            <span><strong>AP</strong>{{ selectedClient.apSsid }}</span>
+                            <span><strong>BSSID</strong>{{ selectedClient.apBssid }}</span>
+                            <span><strong>Security</strong>{{ selectedClient.security }}</span>
+                            <span><strong>MFP/PMF</strong>{{ selectedClient.mfp }}</span>
+                            <span><strong>Channel</strong>{{ selectedClient.apChannel }}</span>
+                            <span><strong>Frames</strong>{{ selectedClient.dataFrames }}</span>
+                            <span><strong>Last Seen</strong>{{ selectedClient.lastSeen }}</span>
+                        </div>
+                        <button class="handshake-cta" mat-raised-button (click)="startClientHandshake()" [disabled]="capturing || !selectedClient.associated || !captureReady()">
+                            <mat-icon>vpn_key</mat-icon>
+                            Target AP Handshake
+                        </button>
+                    </div>
+
+                    <div class="table-panel">
+                        <table mat-table [dataSource]="pagedClients" class="ap-table client-table">
+                            <ng-container matColumnDef="mac">
+                                <th mat-header-cell *matHeaderCellDef>Client</th>
+                                <td mat-cell *matCellDef="let client">{{ client.mac }}</td>
+                            </ng-container>
+
+                            <ng-container matColumnDef="ap">
+                                <th mat-header-cell *matHeaderCellDef>Access Point</th>
+                                <td mat-cell *matCellDef="let client">
+                                    <strong>{{ client.apSsid }}</strong>
+                                    <small>{{ client.apBssid }}</small>
+                                </td>
+                            </ng-container>
+
+                            <ng-container matColumnDef="security">
+                                <th mat-header-cell *matHeaderCellDef>Security</th>
+                                <td mat-cell *matCellDef="let client">{{ client.security }}</td>
+                            </ng-container>
+
+                            <ng-container matColumnDef="channel">
+                                <th mat-header-cell *matHeaderCellDef>CH</th>
+                                <td mat-cell *matCellDef="let client">{{ client.apChannel }}</td>
+                            </ng-container>
+
+                            <ng-container matColumnDef="data">
+                                <th mat-header-cell *matHeaderCellDef>Frames</th>
+                                <td mat-cell *matCellDef="let client">
+                                    {{ client.dataFrames }}
+                                    <small>{{ client.broadcastProbes }} broadcast / {{ client.directProbes }} direct probes</small>
+                                </td>
+                            </ng-container>
+
+                            <ng-container matColumnDef="lastSeen">
+                                <th mat-header-cell *matHeaderCellDef>Last Seen</th>
+                                <td mat-cell *matCellDef="let client">{{ client.lastSeen }}</td>
+                            </ng-container>
+
+                            <tr mat-header-row *matHeaderRowDef="clientColumns"></tr>
+                            <tr
+                                mat-row
+                                *matRowDef="let row; columns: clientColumns;"
+                                [class.selected]="selectedClient === row"
+                                (click)="selectClient(row)">
+                            </tr>
+                        </table>
+
+                        <div class="empty-state" *ngIf="!clients.length && !loading">
+                            <mat-icon>person_search</mat-icon>
+                            <span>No clients found in this scan</span>
+                        </div>
+                    </div>
+                    <div class="pager-row" *ngIf="clients.length">
+                        <button mat-button (click)="prevClientPage()" [disabled]="clientPageIndex === 0">
+                            <mat-icon>chevron_left</mat-icon>
+                            Previous
+                        </button>
+                        <span>Showing {{ clientPageIndex * pageSize + 1 }}-{{ clientPageIndex * pageSize + pagedClients.length }} of {{ clients.length }}</span>
+                        <button mat-button (click)="nextClientPage()" [disabled]="clientPageIndex >= clientPageCount - 1">
+                            Next
+                            <mat-icon>chevron_right</mat-icon>
+                        </button>
+                    </div>
+                </mat-tab>
+
+                <mat-tab label="Handshakes">
+                    <div class="handshake-panel">
+                        <div class="handshake-action-bar">
+                            <div>
+                                <strong>{{ selectedAp ? selectedAp.ssid : 'No AP selected' }}</strong>
+                                <span>{{ selectedAp ? selectedAp.bssid + ' / CH ' + selectedAp.channel : 'Select an AP or client to target' }}</span>
+                                <small>{{ capturing ? 'Elapsed ' + captureElapsedLabel() : 'Timer ' + captureDurationLabel() }}</small>
+                            </div>
+                            <button class="handshake-cta" mat-raised-button (click)="startHandshakeCapture()" [disabled]="capturing || !selectedAp || !captureReady()">
+                                <mat-icon>vpn_key</mat-icon>
+                                Start Handshake
+                            </button>
+                            <button class="danger-action" mat-raised-button (click)="stopHandshakeCapture()" [disabled]="!capturing">
+                                <mat-icon>stop_circle</mat-icon>
+                                Stop
+                            </button>
+                        </div>
+
+                        <div class="pine-dap-panel">
+                            <div>
+                                <strong>Pine DAP</strong>
+                                <span>Original PineAP handshake.</span>
+                                <small *ngIf="pineDapMessage">{{ pineDapMessage }}</small>
+                            </div>
+                            <div class="pine-dap-actions">
+                                <button class="ghost-action" mat-raised-button (click)="startPineDap()" [disabled]="pineDapBusy || !selectedAp">
+                                    <mat-icon>gesture</mat-icon>
+                                    Pine DAP
+                                </button>
+                                <button class="danger-action" mat-raised-button (click)="stopPineDap()" [disabled]="pineDapBusy">
+                                    <mat-icon>stop_circle</mat-icon>
+                                    Stop DAP
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="handshake-selector">
+                            <mat-form-field appearance="outline">
+                                <mat-label>Capture Files</mat-label>
+                                <mat-select [(ngModel)]="selectedCaptureFile" (ngModelChange)="selectCaptureByFile($event)" aria-label="Handshake capture files" [disabled]="!captures.length">
+                                    <mat-select-trigger>
+                                        {{ selectedCaptureFile || 'No captures found' }}
+                                    </mat-select-trigger>
+                                    <mat-option *ngFor="let capture of captures" [value]="capture.file">
+                                        <div class="capture-option">
+                                            <div>
+                                                <strong>{{ capture.file }}</strong>
+                                                <small>{{ captureStatusLabel(capture) }} / {{ capture.eapol_frames }} EAPOL</small>
+                                            </div>
+                                            <span class="capture-option-actions">
+                                                <button
+                                                    type="button"
+                                                    mat-icon-button
+                                                    matTooltip="Download capture"
+                                                    (click)="downloadCaptureFromMenu($event, capture)">
+                                                    <mat-icon>file_download</mat-icon>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    mat-icon-button
+                                                    matTooltip="Delete capture"
+                                                    (click)="deleteCaptureFromMenu($event, capture)">
+                                                    <mat-icon>delete</mat-icon>
+                                                </button>
+                                            </span>
+                                        </div>
+                                    </mat-option>
+                                </mat-select>
+                            </mat-form-field>
+                            <button class="ghost-action" mat-icon-button matTooltip="Refresh captures" (click)="refreshCaptures()">
+                                <mat-icon>refresh</mat-icon>
+                            </button>
+                            <button class="ghost-action" mat-raised-button (click)="downloadSelectedCapture()" [disabled]="!selectedCapture">
+                                <mat-icon>file_download</mat-icon>
+                                Download PCAP
+                            </button>
+                            <button class="danger-action" mat-raised-button (click)="deleteSelectedCapture()" [disabled]="!selectedCapture">
+                                <mat-icon>delete</mat-icon>
+                                Delete
+                            </button>
+                        </div>
+
+                        <div class="handshake-summary" *ngIf="handshakeReport()">
+                            <div>
+                                <strong>{{ handshakeReport().file }}</strong>
+                                <span>
+                                    {{ captureStatusLabel(handshakeReport()) }} /
+                                    {{ handshakeReport().eapol_frames }} EAPOL frames /
+                                    {{ handshakeReport().pmkid_hashes || 0 }} PMKID /
+                                    {{ handshakeReport().eapol_hashes || 0 }} EAPOL hashes
+                                </span>
+                            </div>
+                            <div class="eapol-grid">
+                                <span [class.found]="eapolCount(handshakeReport(), 'M1')">M1 <em>{{ eapolCount(handshakeReport(), 'M1') }}</em></span>
+                                <span [class.found]="eapolCount(handshakeReport(), 'M2')">M2 <em>{{ eapolCount(handshakeReport(), 'M2') }}</em></span>
+                                <span [class.found]="eapolCount(handshakeReport(), 'M3')">M3 <em>{{ eapolCount(handshakeReport(), 'M3') }}</em></span>
+                                <span [class.found]="eapolCount(handshakeReport(), 'M4')">M4 <em>{{ eapolCount(handshakeReport(), 'M4') }}</em></span>
+                            </div>
+                        </div>
+
+                        <div class="capture-status" *ngIf="capturing || handshakeLog">
+                            <div>
+                                <strong>{{ capturing ? 'Capture running' : 'Last capture output' }}</strong>
+                                <span>{{ selectedAp ? selectedAp.ssid + ' / ' + selectedAp.bssid : 'Any target' }}</span>
+                            </div>
+                            <pre>{{ handshakeLog || 'Waiting for capture output...' }}</pre>
+                        </div>
+
+                        <div class="dependency-row" *ngIf="!captureReady()">
+                            <span>Capture tooling is missing on this Pineapple.</span>
+                            <button mat-raised-button color="primary" (click)="installDependencies()" [disabled]="dependencyBusy">
+                                <mat-icon>file_download</mat-icon>
+                                Install
+                            </button>
+                        </div>
+
+                        <div
+                            class="capture-row"
+                            *ngFor="let capture of captures"
+                            [class.complete]="capture.complete"
+                            [class.selected]="selectedCapture === capture"
+                            (click)="selectCapture(capture)">
+                            <mat-icon>{{ capture.complete ? 'verified_user' : (capture.eapol_frames ? 'key' : 'policy') }}</mat-icon>
+                            <span>{{ capture.file }}</span>
+                            <strong>{{ captureStatusLabel(capture) }}</strong>
+                            <small>
+                                M1 {{ eapolCount(capture, 'M1') }} /
+                                M2 {{ eapolCount(capture, 'M2') }} /
+                                M3 {{ eapolCount(capture, 'M3') }} /
+                                M4 {{ eapolCount(capture, 'M4') }}
+                            </small>
+                            <button
+                                type="button"
+                                class="capture-download"
+                                mat-icon-button
+                                matTooltip="Download handshake PCAP"
+                                (click)="$event.stopPropagation(); downloadCapture(capture)">
+                                <mat-icon>file_download</mat-icon>
+                            </button>
+                        </div>
+
+                        <div class="empty-state" *ngIf="!captures.length">
+                            <mat-icon>vpn_key_off</mat-icon>
+                            <span>No handshake captures found</span>
+                        </div>
+                    </div>
+                </mat-tab>
+            </mat-tab-group>
+        </section>
+    </main>
+</section>
