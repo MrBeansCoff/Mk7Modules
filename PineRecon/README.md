@@ -1,5 +1,5 @@
 
-![HeaderLogo]()
+![HeaderLogo](https://github.com/MrBeansCoff/Mk7Modules/blob/main/PineRecon/readme_assets/pinerecon-logo.png?raw=true)
 
 <p align="center">
   <img alt="WiFi Pineapple MK7" src="https://img.shields.io/badge/WiFi%20Pineapple-MK7-62f7d4?style=for-the-badge">
