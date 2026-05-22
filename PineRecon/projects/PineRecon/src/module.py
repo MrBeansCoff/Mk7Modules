@@ -17,7 +17,7 @@
 #⠀⠀⠀⣾⣿⣿⣿⠟⢛⣛⣛⣛⣻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣾⣿⣿⣿⣦⣦⡙⣿⣿⠿⠿⠿⠿⣿⣿⣿⣿⣿⠿⠿⠿⣿⠟⠛⠛⢷⣾⠇⠀⠀
 #⠀⠀⠰⢻⡿⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠐⠒⠒⠚⠻⠿⣿⣿⣿⣷⣶⣦⣤⣤⣤⣴⣿⣿⣮⣻⣿⣿⣿⠟⠛⠛⠙⠉⠉⠁⠀⠀⠀⠀⠀⠀⠀⠙⠀⠀⠀
 #⠀⠀⠀⠈⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠙⠛⠻⠿⠿⠿⠟⠛⠙⠛⠉⠳
-# [VERSION]: 1.0 [AUTHOR]: MrBeansCoff (Maybe?)⠀[MODULE_BUILD]: MK7 
+# [VERSION]: 1.0 [AUTHOR]: MrBeansCoff⠀[MODULE_BUILD]: MK7 
 # [CONTRIBUTERS]: 1⠀⠀⠀[LICENSE]: Apache License (2.0)
 # 
 # [SPILLED BEANS]: 
@@ -56,12 +56,23 @@ OUIS: Dict[str, str] = {}
 OUI_PATH = ''
 OUI_ERROR = ''
 DEPENDENCIES = ['hcxdumptool', 'aircrack-ng']
+TOOL_PATHS = {
+    'hcxdumptool': '/usr/sbin/hcxdumptool',
+    'hcxpcapngtool': '/sbin/hcxpcapngtool',
+    'aircrack-ng': '/usr/bin/aircrack-ng',
+    'airodump-ng': '/usr/sbin/airodump-ng',
+    'aireplay-ng': '/usr/sbin/aireplay-ng',
+    'iw': '/usr/sbin/iw',
+    'killall': '/usr/bin/killall',
+    'pineap': '/usr/bin/pineap',
+    'ps': '/bin/ps',
+}
 DEPENDENCY_BINARIES = {
-    'hcxdumptool': ['hcxdumptool', '/usr/bin/hcxdumptool', '/usr/sbin/hcxdumptool', '/bin/hcxdumptool', '/sbin/hcxdumptool'],
-    'hcxpcapngtool': ['hcxpcapngtool', '/usr/bin/hcxpcapngtool', '/usr/sbin/hcxpcapngtool', '/bin/hcxpcapngtool', '/sbin/hcxpcapngtool'],
-    'aircrack-ng': ['aircrack-ng', 'aircrack', '/usr/bin/aircrack-ng', '/usr/sbin/aircrack-ng', '/bin/aircrack-ng', '/sbin/aircrack-ng'],
-    'airodump-ng': ['airodump-ng', '/usr/bin/airodump-ng', '/usr/sbin/airodump-ng', '/bin/airodump-ng', '/sbin/airodump-ng'],
-    'aireplay-ng': ['aireplay-ng', '/usr/bin/aireplay-ng', '/usr/sbin/aireplay-ng', '/bin/aireplay-ng', '/sbin/aireplay-ng'],
+    'hcxdumptool': [TOOL_PATHS['hcxdumptool'], 'hcxdumptool', '/usr/bin/hcxdumptool', '/bin/hcxdumptool', '/sbin/hcxdumptool'],
+    'hcxpcapngtool': [TOOL_PATHS['hcxpcapngtool'], 'hcxpcapngtool', '/usr/bin/hcxpcapngtool', '/usr/sbin/hcxpcapngtool', '/bin/hcxpcapngtool'],
+    'aircrack-ng': [TOOL_PATHS['aircrack-ng'], 'aircrack-ng', 'aircrack', '/usr/sbin/aircrack-ng', '/bin/aircrack-ng', '/sbin/aircrack-ng'],
+    'airodump-ng': [TOOL_PATHS['airodump-ng'], 'airodump-ng', '/usr/bin/airodump-ng', '/bin/airodump-ng', '/sbin/airodump-ng'],
+    'aireplay-ng': [TOOL_PATHS['aireplay-ng'], 'aireplay-ng', '/usr/bin/aireplay-ng', '/bin/aireplay-ng', '/sbin/aireplay-ng'],
 }
 CAPTURE_DIRECTORY_PATH = '/root/.PineRecon/captures'
 CAPTURE_DIRECTORY = pathlib.Path(CAPTURE_DIRECTORY_PATH)
@@ -133,7 +144,7 @@ class HandshakeCaptureJob(Job[dict]):
 
     def _command(self) -> List[str]:
         if self.engine == 'airodump-ng':
-            command = ['airodump-ng', '--write', self.output_prefix, '--output-format', 'pcap']
+            command = [_resolve_binary('airodump-ng'), '--write', self.output_prefix, '--output-format', 'pcap']
             if self.bssid:
                 command.extend(['--bssid', _format_mac(self.bssid)])
             if self.channel:
@@ -141,7 +152,7 @@ class HandshakeCaptureJob(Job[dict]):
             command.append(self.interface)
             return command
 
-        command = ['hcxdumptool', '-i', self.interface, '-o', self.output_path]
+        command = [_resolve_binary('hcxdumptool'), '-i', self.interface, '-o', self.output_path]
         if self.channel:
             command.extend(['-c', str(self.channel)])
         return command
@@ -149,7 +160,7 @@ class HandshakeCaptureJob(Job[dict]):
     def _deauth_command(self) -> List[str]:
         if not self.bssid or not _has_named_tool('aireplay-ng'):
             return []
-        return ['aireplay-ng', '--deauth', '0', '-a', _format_mac(self.bssid), self.interface]
+        return [_resolve_binary('aireplay-ng'), '--deauth', '0', '-a', _format_mac(self.bssid), self.interface]
 
     def stop(self):
         if self.proc and self.proc.poll() is None:
@@ -272,6 +283,15 @@ def _has_binary(binary: str) -> bool:
     return os.path.isabs(binary) and os.path.exists(binary) or shutil.which(binary) is not None
 
 
+def _resolve_binary(binary: str) -> str:
+    candidates = DEPENDENCY_BINARIES.get(binary, [TOOL_PATHS.get(binary, binary), binary])
+    for candidate in candidates:
+        if os.path.isabs(candidate) and os.path.exists(candidate):
+            return candidate
+    resolved = shutil.which(binary)
+    return resolved or TOOL_PATHS.get(binary, binary)
+
+
 def _has_named_tool(name: str) -> bool:
     return any(_has_binary(binary) for binary in DEPENDENCY_BINARIES.get(name, [name]))
 
@@ -336,7 +356,7 @@ def _run_command(command: List[str], timeout: int = 5) -> dict:
 
 
 def _interface_iw_info(interface: str) -> dict:
-    result = _run_command(['iw', 'dev', interface, 'info'])
+    result = _run_command([_resolve_binary('iw'), 'dev', interface, 'info'])
     info = {
         'available': result['ok'],
         'type': '',
@@ -365,7 +385,7 @@ def _set_interface_channel(interface: str, channel: str) -> dict:
     if not interface or not channel:
         return {'ok': False, 'message': 'Capture interface and target channel are required.'}
 
-    result = _run_command(['iw', 'dev', interface, 'set', 'channel', channel], timeout=8)
+    result = _run_command([_resolve_binary('iw'), 'dev', interface, 'set', 'channel', channel], timeout=8)
     if not result['ok']:
         return {
             'ok': False,
@@ -387,9 +407,9 @@ def _set_interface_channel(interface: str, channel: str) -> dict:
 
 
 def _process_lines() -> List[str]:
-    result = _run_command(['ps', 'w'])
+    result = _run_command([_resolve_binary('ps'), 'w'])
     if not result['ok'] and not result['stdout']:
-        result = _run_command(['ps'])
+        result = _run_command([_resolve_binary('ps')])
     return result['stdout'].splitlines()
 
 
@@ -573,7 +593,7 @@ def _validate_capture_hashes(path: pathlib.Path) -> dict:
         except Exception:
             pass
 
-    result = _run_command(['hcxpcapngtool', '-o', str(hash_path), str(path)], timeout=45)
+    result = _run_command([_resolve_binary('hcxpcapngtool'), '-o', str(hash_path), str(path)], timeout=45)
     hash_lines = []
     if hash_path.exists():
         try:
@@ -875,7 +895,7 @@ def start_handshake_capture(request: Request):
 
 @module.handles_action('start_pineap_handshake')
 def start_pineap_handshake(request: Request):
-    if not _has_binary('pineap'):
+    if not _has_binary(_resolve_binary('pineap')):
         return 'PineAP command is not available on this Pineapple.', False
 
     bssid = _normalise_mac(getattr(request, 'bssid', ''))
@@ -885,7 +905,7 @@ def start_pineap_handshake(request: Request):
     if not channel:
         return 'A target channel is required.', False
 
-    result = _run_command(['pineap', 'handshake_capture_start', _format_mac(bssid), channel], timeout=12)
+    result = _run_command([_resolve_binary('pineap'), 'handshake_capture_start', _format_mac(bssid), channel], timeout=12)
     if not result['ok']:
         return {
             'message': 'PineAP handshake capture did not start cleanly.',
@@ -907,9 +927,9 @@ def start_pineap_handshake(request: Request):
 
 @module.handles_action('stop_pineap_handshake')
 def stop_pineap_handshake(request: Request):
-    if not _has_binary('pineap'):
+    if not _has_binary(_resolve_binary('pineap')):
         return 'PineAP command is not available on this Pineapple.', False
-    result = _run_command(['pineap', 'handshake_capture_stop'], timeout=8)
+    result = _run_command([_resolve_binary('pineap'), 'handshake_capture_stop'], timeout=8)
     module.send_notification('Pine DAP native PineAP handshake capture stopped.', notifier.WARN)
     return {'stopped': result['ok'], 'stdout': result['stdout'], 'stderr': result['stderr']}
 
@@ -920,9 +940,9 @@ def stop_handshake_capture(request: Request):
     if job_id:
         job_manager.stop_job(job_id=job_id)
     else:
-        subprocess.call(['killall', '-9', 'hcxdumptool'])
-        subprocess.call(['killall', '-9', 'airodump-ng'])
-        subprocess.call(['killall', '-9', 'aireplay-ng'])
+        subprocess.call([_resolve_binary('killall'), '-9', 'hcxdumptool'])
+        subprocess.call([_resolve_binary('killall'), '-9', 'airodump-ng'])
+        subprocess.call([_resolve_binary('killall'), '-9', 'aireplay-ng'])
     module.send_notification('PineRecon handshake capture stopped.', notifier.WARN)
     return True
 
